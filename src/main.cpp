@@ -1,0 +1,216 @@
+/*
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: CC0-1.0
+ */
+
+#include <Arduino.h>
+#include <LittleFS.h>
+#include <esp_display_panel.hpp>
+#include <lvgl.h>
+#include "lvgl_v8_port.h"
+
+// Import required libraries
+#include <LittleFS.h>
+
+#include <WiFi.h>
+
+#include <ESPAsyncWebServer.h>
+#include <DNSServer.h>
+
+#include "Settings.h"
+#include "myDebug.h"
+
+
+#include "fileHandler.h"
+#include "webHandler.h"
+#include "imageHandler.h"
+#include "uiHandler.h"
+#include "MzOTA.h"
+
+/**
+/* To use the built-in examples and demos of LVGL uncomment the includes below respectively.
+ * You also need to copy `lvgl/examples` to `lvgl/src/examples`. Similarly for the demos `lvgl/demos` to `lvgl/src/demos`.
+ */
+//#include <demos/lv_demos.h>
+//#include <examples/lv_examples.h>
+
+//////////////////////
+// Konfiguration
+//////////////////////
+
+#define WIFI_SSID      "mzwlanOG"
+#define WIFI_PASSWORD  "wlanzr0772125846"
+const byte DNS_PORT = 53;
+
+
+using namespace esp_panel::drivers;
+using namespace esp_panel::board;
+
+Board *board = nullptr;
+
+ImageHandler ih;
+FileHandler fh;
+WebHandler wh;
+UIHandler uh;
+
+static Settings *se;
+
+static unsigned long ota_progress_millis = 0;
+static bool OTAStarted = false;
+
+void ConnectToWiFi(const char *ssid, const char *password);
+
+void onOTAStart() {
+  // Log when OTA has started
+  DEBUG_PRINTLN("OTA update started!");
+  auto backlight = board->getBacklight();
+  backlight->off();
+  OTAStarted = true;
+}
+
+void onOTAProgress(size_t current, size_t final) {
+  // Log every 1 second
+  if (millis() - ota_progress_millis > 1000) {
+    ota_progress_millis = millis();
+    DEBUG_PRINTF("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
+  }
+}
+
+void onOTAEnd(bool success) {
+  // Log when OTA has finished
+  if (success) {
+    DEBUG_PRINTLN("OTA update finished successfully!");
+  } else {
+    DEBUG_PRINTLN("There was an error during OTA update!");
+  }
+  OTAStarted = false;
+  auto backlight = board->getBacklight();
+  backlight->on();
+}
+
+void setup()
+{
+    Serial.begin(115200);
+    delay(500);
+
+    DEBUG_PRINTF("Initializing board, tearing=%d\n", LVGL_PORT_AVOID_TEARING_MODE);
+
+    
+    fh.init();
+
+    ConnectToWiFi(WIFI_SSID, WIFI_PASSWORD);
+
+    wh.init();
+    wh.start();
+
+    board = new Board();
+    board->init();
+
+#if LVGL_PORT_AVOID_TEARING_MODE
+    auto lcd = board->getLCD();
+    // When avoid tearing function is enabled, the frame buffer number should be set in the board driver
+    lcd->configFrameBufferNumber(LVGL_PORT_DISP_BUFFER_NUM);
+#if ESP_PANEL_DRIVERS_BUS_ENABLE_RGB && CONFIG_IDF_TARGET_ESP32S3
+    auto lcd_bus = lcd->getBus();
+    /**
+     * As the anti-tearing feature typically consumes more PSRAM bandwidth, for the ESP32-S3, we need to utilize the
+     * "bounce buffer" functionality to enhance the RGB data bandwidth.
+     * This feature will consume `bounce_buffer_size * bytes_per_pixel * 2` of SRAM memory.
+     */
+    if (lcd_bus->getBasicAttributes().type == ESP_PANEL_BUS_TYPE_RGB) {
+        static_cast<BusRGB *>(lcd_bus)->configRGB_BounceBufferSize(lcd->getFrameWidth() * 10);
+    }
+#endif
+#endif
+    assert(board->begin());
+
+    DEBUG_PRINTLN("Initializing LVGL");
+    assert(lvgl_port_init(board->getLCD(), board->getTouch()));
+
+ 
+    delay(500);
+    DEBUG_PRINTLN("Creating UI");
+ 
+    ih.init();
+    uh.init();
+    
+    DEBUG_PRINTF("ih=%p, uh=%p\n", &ih, &uh);
+    
+    DEBUG_PRINTF("Screen width: %d, height: %d\n", lv_obj_get_width(lv_scr_act()), lv_obj_get_height(lv_scr_act()));
+    se = Settings::getInstance();
+    se->init();
+    
+    // Starting DNS Server
+    //dns.start(DNS_PORT, "*", WiFi.localIP());
+
+    // MzOTA
+    MzOTA.begin(wh.getServer());
+
+    // MzOTA callbacks
+    MzOTA.onStart(onOTAStart);
+    MzOTA.onProgress(onOTAProgress);
+    MzOTA.onEnd(onOTAEnd);
+
+    delay(100);
+}
+
+//////////////////////
+// Loop: Digital Foto Frame
+//////////////////////
+
+void loop()
+{
+    if(!OTAStarted)
+    {
+        lv_timer_handler();
+        delay(100);
+        ih.loop();
+    }
+    MzOTA.loop();
+}
+
+
+/**************************************************
+* ConnectToWiFi(const char *ssid, const char *password)
+*/
+void ConnectToWiFi(const char *ssid, const char *password)
+{
+    DEBUG_PRINTLN("main::ConnectToWiFi()");
+
+    // prepare WiFi
+    WiFi.disconnect(true);             // that no old information is stored  
+    WiFi.mode(WIFI_OFF);               // switch WiFi off  
+    delay(1000);                       // short wait to ensure WIFI_OFF  
+    WiFi.persistent(false);            // avoid that WiFi-parameters will be stored in persistent memory  
+
+    // Connect to Wi-Fi
+    WiFi.mode(WIFI_STA);
+    delay(1000);  
+    WiFi.begin(ssid, password);
+
+    // try 15 times, then do a reconnect if still not conected
+    int i = 0;
+    DEBUG_PRINTLN("Connecting to WiFi");
+    while (WiFi.status() != WL_CONNECTED) 
+    {
+        DEBUG_PRINT(".");
+
+        if ( i == 15 )
+        {
+            DEBUG_PRINT("_reconnect_");
+            WiFi.reconnect();
+        }
+
+        if (i > 30)
+            break;
+        
+        delay(500);
+        i++;
+    }
+
+    // Print ESP Local IP Address
+    DEBUG_PRINTLN(WiFi.localIP());
+}
+
+
