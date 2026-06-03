@@ -10,6 +10,7 @@
 #include "uiHandler.h"
 #include "settings.h"
 #include "myDebug.h"
+#include "credentials.h"
 
 extern UIHandler uh;
 
@@ -22,7 +23,7 @@ uint16_t *ImageHandler::imgBuf2 = nullptr;
 uint16_t *ImageHandler::imgBuf3 = nullptr;
 uint16_t *ImageHandler::imgBuf4 = nullptr;
 
-#define  PHPURL "https://bmerz.de/Dpf/Dpf.php?token=mss"
+
 
 // Callback (click on Image)
 static void image_event_cb(lv_event_t *e) {

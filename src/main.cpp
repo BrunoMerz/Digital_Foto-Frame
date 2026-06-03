@@ -27,20 +27,14 @@
 #include "imageHandler.h"
 #include "uiHandler.h"
 #include "MzOTA.h"
+#include "credentials.h"
 
-/**
-/* To use the built-in examples and demos of LVGL uncomment the includes below respectively.
- * You also need to copy `lvgl/examples` to `lvgl/src/examples`. Similarly for the demos `lvgl/demos` to `lvgl/src/demos`.
- */
-//#include <demos/lv_demos.h>
-//#include <examples/lv_examples.h>
 
 //////////////////////
-// Konfiguration
+// Configuration
 //////////////////////
 
-#define WIFI_SSID      "mzwlanOG"
-#define WIFI_PASSWORD  "wlanzr0772125846"
+
 const byte DNS_PORT = 53;
 
 
