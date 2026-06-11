@@ -28,6 +28,10 @@ typedef struct {
     NV lblDuration;
     NV lblBrightness;
     NV brightness;
+    NV fromHour;
+    NV fromMin;
+    NV toHour;
+    NV toMin;
 } SETTINGS;
 
 class Settings {

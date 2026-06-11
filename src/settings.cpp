@@ -4,6 +4,8 @@
 #include <Preferences.h>
 #include "imageHandler.h"
 #include "myDebug.h"
+#include <lvgl.h>
+#include "lvgl_v8_port.h"
 
 extern ImageHandler ih;
 
@@ -24,7 +26,7 @@ Settings::Settings() {
 
 
 void Settings::init(void) {
-  
+  lvgl_port_lock(portMAX_DELAY);
   s.mode.value = prefs.getUInt("mode", 0);
   DEBUG_PRINTF("Settings: mode=%d\n",s.mode.value);
   lv_dropdown_set_selected(s.mode.uiPtr, s.mode.value);
@@ -44,6 +46,19 @@ void Settings::init(void) {
   s.transition.value = prefs.getUInt("transition", 0);
   lv_dropdown_set_selected(s.transition.uiPtr, s.transition.value);
 
+  s.fromHour.value = prefs.getUInt("fromHour", 0);
+  lv_spinbox_set_value(s.fromHour.uiPtr, s.fromHour.value);
+
+  s.fromMin.value = prefs.getUInt("fromMin", 0);
+  lv_spinbox_set_value(s.fromMin.uiPtr, s.fromMin.value);
+
+  s.toHour.value = prefs.getUInt("toHour", 0);
+  lv_spinbox_set_value(s.toHour.uiPtr, s.toHour.value);
+
+  s.toMin.value = prefs.getUInt("toMin", 0);
+  lv_spinbox_set_value(s.toMin.uiPtr, s.toMin.value);
+
+  lvgl_port_unlock();
 }
 
 

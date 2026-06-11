@@ -52,12 +52,17 @@ ImageHandler::ImageHandler() {
     enabled = false;
     jpgBufferSize=512000;
     jpgBuffer = (uint8_t*)heap_caps_malloc(jpgBufferSize, MALLOC_CAP_SPIRAM);
+    imgBuf1 = (uint16_t*)heap_caps_malloc(imgBuf1Size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    imgBuf2 = (uint16_t*)heap_caps_malloc(imgBuf2Size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    imgBuf3 = (uint16_t*)heap_caps_malloc(imgBuf3Size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    imgBuf4 = (uint16_t*)heap_caps_malloc(imgBuf4Size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 }
 
 
 void ImageHandler::init() {
     getImageList(PHPURL);
 
+    lvgl_port_lock(portMAX_DELAY);
     // EIN gemeinsamer Container für die Image-Ansicht
     img_view = lv_obj_create(lv_scr_act());
     lv_obj_remove_style_all(img_view);
@@ -123,7 +128,8 @@ void ImageHandler::init() {
     lv_obj_set_size(img_full, 800, 480);
     lv_obj_center(img_full);
     lv_obj_add_flag(img_full, LV_OBJ_FLAG_HIDDEN);
- 
+    
+    lvgl_port_unlock();
 }
 
 
@@ -263,64 +269,68 @@ bool ImageHandler::jpg_output(int16_t x, int16_t y, uint16_t w, uint16_t h, uint
     return true;
 }
 
-
+ 
 bool ImageHandler::decodeJpgToBuffer(void) {
+    size_t s = sw * sh * 2;
     if(se->s.mode.value) {
         switch (imgNo) {
             case 0:
-                if(!imgBuf1)
-                    imgBuf1 = (uint16_t*)heap_caps_malloc(sw * sh * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-                else
-                    imgBuf1 = (uint16_t*)heap_caps_realloc(imgBuf1, sw * sh * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-
-                if (!imgBuf1) {
-                    DEBUG_PRINTLN("PSRAM1 allocation for LVGL image failed!");
-                    return false;
+                if(s > imgBuf1Size) {
+                    imgBuf1 = (uint16_t*)heap_caps_realloc(imgBuf1, s, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+                    imgBuf1Size = s;
+                
+                    if (!imgBuf1) {
+                        DEBUG_PRINTLN("PSRAM1 allocation for LVGL image failed!");
+                        return false;
+                    }
                 }
                 break;
+
             case 1:
-                if(!imgBuf2)
-                    imgBuf2 = (uint16_t*)heap_caps_malloc(sw * sh * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-                else
-                    imgBuf2 = (uint16_t*)heap_caps_realloc(imgBuf2, sw * sh * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-
-                if (!imgBuf2) {
-                    DEBUG_PRINTLN("PSRAM2 allocation for LVGL image failed!");
-                    return false;
+                if(s > imgBuf2Size) {
+                    imgBuf2 = (uint16_t*)heap_caps_realloc(imgBuf2, s, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+                    imgBuf2Size = s;
+                
+                    if (!imgBuf2) {
+                        DEBUG_PRINTLN("PSRAM2 allocation for LVGL image failed!");
+                        return false;
+                    }
                 }
                 break;
+
             case 2:
-                if(!imgBuf3)
-                    imgBuf3 = (uint16_t*)heap_caps_malloc(sw * sh * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-                else
-                    imgBuf3 = (uint16_t*)heap_caps_realloc(imgBuf3, sw * sh * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-
-                if (!imgBuf3) {
-                    DEBUG_PRINTLN("PSRAM3 allocation for LVGL image failed!");
-                    return false;
+                if(s > imgBuf3Size) {
+                    imgBuf3 = (uint16_t*)heap_caps_realloc(imgBuf3, s, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+                    imgBuf3Size = s;
+                
+                    if (!imgBuf3) {
+                        DEBUG_PRINTLN("PSRAM3 allocation for LVGL image failed!");
+                        return false;
+                    }
                 }
                 break;
-            case 3:
-                if(!imgBuf4)
-                    imgBuf4 = (uint16_t*)heap_caps_malloc(sw * sh * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-                else
-                    imgBuf4 = (uint16_t*)heap_caps_realloc(imgBuf4, sw * sh * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
-                if (!imgBuf4) {
-                    DEBUG_PRINTLN("PSRAM4 allocation for LVGL image failed!");
-                    return false;
+            case 3:
+                if(s > imgBuf4Size) {
+                    imgBuf4 = (uint16_t*)heap_caps_realloc(imgBuf4, s, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+                    imgBuf4Size = s;
+                
+                    if (!imgBuf4) {
+                        DEBUG_PRINTLN("PSRAM4 allocation for LVGL image failed!");
+                        return false;
+                    }
                 }
                 break;
         }
     } else {
-        if(!imgBuf1)
-            imgBuf1 = (uint16_t*)heap_caps_malloc(sw * sh * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        else
-            imgBuf1 = (uint16_t*)heap_caps_realloc(imgBuf1, sw * sh * 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-
-        if (!imgBuf1) {
-            DEBUG_PRINTLN("PSRAM11 allocation for LVGL image failed!");
-            return false;
+        if(s > imgBuf1Size) {
+            imgBuf1 = (uint16_t*)heap_caps_realloc(imgBuf1, s, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+            imgBuf1Size = s;
+            
+            if (!imgBuf1) {
+                DEBUG_PRINTLN("PSRAM11 allocation for LVGL image failed!");
+                return false;
+            }
         }
     }
     TJpgDec.setCallback(jpg_output);
@@ -421,9 +431,11 @@ void ImageHandler::displayImage(void) {
                 break;
         }
     } else {
+        lvgl_port_lock(portMAX_DELAY);
         lv_img_set_src(img_full, &img_dsc1);
         lv_obj_set_size(img_full, img_dsc1.header.w, img_dsc1.header.h);
         lv_obj_center(img_full);
+        lvgl_port_unlock();
     }
 }
 
@@ -437,7 +449,7 @@ void ImageHandler::loop(void) {
             const char* url = images[currentImageIndex];
 
             // Lock the mutex due to the LVGL APIs are not thread-safe
-            lvgl_port_lock(-1);
+            lvgl_port_lock(portMAX_DELAY);
             if (downloadJpg(url)) {
                 DEBUG_PRINTF("Bild %s anzeigen\n", url);
                 if (decodeJpgToBuffer()) {
@@ -469,13 +481,17 @@ void ImageHandler::loop(void) {
 
 void ImageHandler::disableImage(void) {
     enabled = false;
+    lvgl_port_lock(portMAX_DELAY);
     lv_obj_add_flag(img_view, LV_OBJ_FLAG_HIDDEN);
+    lvgl_port_unlock();
 }
 
 
 void ImageHandler::enableImage(void) {
+    lvgl_port_lock(portMAX_DELAY);
     lv_obj_clear_flag(img_view, LV_OBJ_FLAG_HIDDEN);
     lv_obj_move_foreground(img_view);
+    lvgl_port_unlock();
     enabled = true;
 }
 
@@ -486,6 +502,8 @@ bool ImageHandler::isImageEnabled(void) {
 
 void ImageHandler::showImageFit(lv_obj_t *img, const lv_img_dsc_t *src)
 {
+    lvgl_port_lock(portMAX_DELAY);
+
     lv_img_set_src(img, src);
 
     // 3. Originalgröße
@@ -504,10 +522,13 @@ void ImageHandler::showImageFit(lv_obj_t *img, const lv_img_dsc_t *src)
     lv_obj_set_size(img, header.w, header.h);
     // 6. Zentrieren (jetzt wirkt Zoom korrekt)
     lv_obj_center(img);
+
+    lvgl_port_unlock();
 }
 
 
 void ImageHandler::setUIPanel(uint32_t mode) {
+    lvgl_port_lock(portMAX_DELAY);
     if(mode) {
         // mehrere Images
         // alle Container sichtbar machen
@@ -528,6 +549,7 @@ void ImageHandler::setUIPanel(uint32_t mode) {
         lv_obj_clear_flag(img_full, LV_OBJ_FLAG_HIDDEN);
     }
     se->setUInt("mode", se->s.mode.value);
+    lvgl_port_unlock();
 }
 
 

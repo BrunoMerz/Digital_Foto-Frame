@@ -65,6 +65,8 @@ class ImageHandler {
         int16_t sh;
         int8_t scale = 1;
 
+        size_t imgBuf1Size,imgBuf2Size,imgBuf3Size,imgBuf4Size = 800*400*2;
+
         lv_img_dsc_t img_dsc1;
         lv_img_dsc_t img_dsc2;
         lv_img_dsc_t img_dsc3;

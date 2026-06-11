@@ -1,10 +1,11 @@
 /*
- * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: CC0-1.0
+ * DIGITAL FOTO FRAME
+ * 
+ * Monitor Exceptions: pio device monitor -f esp32_exception_decoder
  */
 
 #include <Arduino.h>
+//#include "esp_system.h"
 #include <LittleFS.h>
 #include <esp_display_panel.hpp>
 #include <lvgl.h>
@@ -19,6 +20,8 @@
 #include <DNSServer.h>
 
 #include "Settings.h"
+
+//#define myDEBUG
 #include "myDebug.h"
 
 
@@ -28,6 +31,7 @@
 #include "uiHandler.h"
 #include "MzOTA.h"
 #include "credentials.h"
+#include "MyTime.h"
 
 
 //////////////////////
@@ -42,6 +46,7 @@ using namespace esp_panel::drivers;
 using namespace esp_panel::board;
 
 Board *board = nullptr;
+Backlight *backlight = nullptr;
 
 ImageHandler ih;
 FileHandler fh;
@@ -49,17 +54,29 @@ WebHandler wh;
 UIHandler uh;
 
 static Settings *se;
+static MyTime *mt;
 
+static uint32_t startup = 0;
 static unsigned long ota_progress_millis = 0;
 static bool OTAStarted = false;
 
 void ConnectToWiFi(const char *ssid, const char *password);
 
+void backlightOnOff(bool on) {
+    if(backlight)
+        if(on) {
+            backlight->on();
+            DEBUG_PRINTLN("Display on");
+        } else {
+            backlight->off();
+            DEBUG_PRINTLN("Display off");
+        }
+}
+
 void onOTAStart() {
   // Log when OTA has started
   DEBUG_PRINTLN("OTA update started!");
-  auto backlight = board->getBacklight();
-  backlight->off();
+  backlightOnOff(false);
   OTAStarted = true;
 }
 
@@ -79,8 +96,7 @@ void onOTAEnd(bool success) {
     DEBUG_PRINTLN("There was an error during OTA update!");
   }
   OTAStarted = false;
-  auto backlight = board->getBacklight();
-  backlight->on();
+  backlightOnOff(true);
 }
 
 void setup()
@@ -98,8 +114,13 @@ void setup()
     wh.init();
     wh.start();
 
+    // Initialize Date Time from NTP
+    mt = MyTime::getInstance();
+    mt->confTime();
+
     board = new Board();
     board->init();
+    backlight = board->getBacklight();
 
 #if LVGL_PORT_AVOID_TEARING_MODE
     auto lcd = board->getLCD();
@@ -122,14 +143,13 @@ void setup()
     DEBUG_PRINTLN("Initializing LVGL");
     assert(lvgl_port_init(board->getLCD(), board->getTouch()));
 
- 
+
     delay(500);
-    DEBUG_PRINTLN("Creating UI");
- 
+
+    DEBUG_PRINTLN("IMG Handler init");
     ih.init();
+    DEBUG_PRINTLN("UI Handler init");
     uh.init();
-    
-    DEBUG_PRINTF("ih=%p, uh=%p\n", &ih, &uh);
     
     DEBUG_PRINTF("Screen width: %d, height: %d\n", lv_obj_get_width(lv_scr_act()), lv_obj_get_height(lv_scr_act()));
     se = Settings::getInstance();
@@ -147,17 +167,60 @@ void setup()
     MzOTA.onEnd(onOTAEnd);
 
     delay(100);
+    startup = millis();
+}
+
+bool turnLcdOn(
+    int currentHour, int currentMinute,
+    int onHour, int onMinute,
+    int offHour, int offMinute)
+{
+    int current = currentHour * 60 + currentMinute;
+    int start   = onHour * 60 + onMinute;
+    int end     = offHour * 60 + offMinute;
+
+    if(millis() - startup > 300000) { // 5 Minuten bleibt das display auf jeden Fall an
+        // Zeitspanne innerhalb eines Tages
+        if (start < end)
+        {
+            return (current >= start && current < end);
+        }
+        // Zeitspanne geht über Mitternacht
+        else if (start > end)
+        {
+            return (current >= start || current < end);
+        }
+        // start == end -> 24 Stunden EIN
+        else
+        {
+            return true;
+        }
+    } else
+        return true;
 }
 
 //////////////////////
 // Loop: Digital Foto Frame
 //////////////////////
-
+static uint32_t last = 0;
 void loop()
 {
+    if(millis() - last > 1000)
+    {
+        last = millis();
+        uh.updateDateTime();
+        if (turnLcdOn(mt->mytm.tm_hour, mt->mytm.tm_min,
+            se->s.fromHour.value, se->s.fromMin.value,
+            se->s.toHour.value, se->s.toMin.value)) {
+            backlightOnOff(true);
+        } else {
+            backlightOnOff(false);
+        }
+    }
+
+
     if(!OTAStarted)
     {
-        lv_timer_handler();
         delay(100);
         ih.loop();
     }
