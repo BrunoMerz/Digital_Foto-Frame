@@ -3,6 +3,12 @@
 #include "ESPAsyncWebServer.h"
 #include "webHandler.h"
 #include "MzOTAHtml.h"
+#include "uiHandler.h"
+#include "imageHandler.h"
+
+extern ImageHandler ih;
+extern UIHandler uh;
+extern char debugLog[2048];
 
 WebHandler::WebHandler(void) 
 {
@@ -30,10 +36,26 @@ void WebHandler::webRequests()
     response->addHeader("Content-Encoding", "gzip");
     request->send(response);
   });
+
   webServer->on("/restart", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->redirect("/");
+    delay(200);
     ESP.restart();
   });
+
+  webServer->on("/pictures", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->redirect("/");
+    delay(200);
+    uh.disableUI();
+    ih.enableImage();
+  });
+
+  webServer->on("/debug", HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+    request->send(200, "text/plain", debugLog);
+  });
 }
+
 
 AsyncWebServer *WebHandler::getServer(void) {
   return webServer;

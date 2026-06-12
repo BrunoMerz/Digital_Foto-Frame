@@ -252,6 +252,7 @@ void MzOTAClass::begin(MZOTA_WEBSERVER *server, const char * username, const cha
         if (!index) {
           // Reset progress size on first frame
           _current_progress_size = 0;
+          MZOTA_DEBUG_MSG("OTA auf Core " + String(xPortGetCoreID()));
         }
 
         // Write chunked data to the free sketch space

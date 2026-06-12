@@ -8,7 +8,7 @@
 */
 #include <WiFi.h>
 
-#define myDEBUG
+//#define myDEBUG
 #include "MyDebug.h"
 
 #include "MyTime.h"

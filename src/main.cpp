@@ -34,6 +34,8 @@
 #include "MyTime.h"
 
 
+extern void debugSysEnv(void);
+
 //////////////////////
 // Configuration
 //////////////////////
@@ -53,31 +55,40 @@ FileHandler fh;
 WebHandler wh;
 UIHandler uh;
 
+char debugLog[2048];
+
 static Settings *se;
 static MyTime *mt;
 
 static uint32_t startup = 0;
 static unsigned long ota_progress_millis = 0;
-static bool OTAStarted = false;
+static int16_t OTAStarted = 0;
 
 void ConnectToWiFi(const char *ssid, const char *password);
 
-void backlightOnOff(bool on) {
-    if(backlight)
-        if(on) {
-            backlight->on();
-            DEBUG_PRINTLN("Display on");
-        } else {
-            backlight->off();
-            DEBUG_PRINTLN("Display off");
+void backlightOnOff(bool onOff) {
+    static uint8_t backlightState = 100;
+    if(backlightState != onOff) {
+        if(backlight) {
+            if(onOff) {
+                backlight->on();
+                DEBUG_PRINTLN("Display on");
+                uh.debug("Display on");
+            } else {
+                backlight->off();
+                DEBUG_PRINTLN("Display off");
+                uh.debug("Display off");
+            }
+            backlightState = onOff;
         }
+    }
 }
 
 void onOTAStart() {
   // Log when OTA has started
   DEBUG_PRINTLN("OTA update started!");
-  backlightOnOff(false);
-  OTAStarted = true;
+  DEBUG_PRINTF("OTA Start auf Core %d\n",xPortGetCoreID());
+  OTAStarted = 1;
 }
 
 void onOTAProgress(size_t current, size_t final) {
@@ -95,8 +106,7 @@ void onOTAEnd(bool success) {
   } else {
     DEBUG_PRINTLN("There was an error during OTA update!");
   }
-  OTAStarted = false;
-  backlightOnOff(true);
+  OTAStarted = 3;
 }
 
 void setup()
@@ -160,6 +170,7 @@ void setup()
 
     // MzOTA
     MzOTA.begin(wh.getServer());
+    MzOTA.setAutoReboot(true);
 
     // MzOTA callbacks
     MzOTA.onStart(onOTAStart);
@@ -167,6 +178,9 @@ void setup()
     MzOTA.onEnd(onOTAEnd);
 
     delay(100);
+
+    debugSysEnv();
+     
     startup = millis();
 }
 
@@ -205,26 +219,47 @@ bool turnLcdOn(
 static uint32_t last = 0;
 void loop()
 {
-    if(millis() - last > 1000)
+    switch(OTAStarted)
     {
-        last = millis();
-        uh.updateDateTime();
-        if (turnLcdOn(mt->mytm.tm_hour, mt->mytm.tm_min,
-            se->s.fromHour.value, se->s.fromMin.value,
-            se->s.toHour.value, se->s.toMin.value)) {
-            backlightOnOff(true);
-        } else {
+        case 0: // normal loops
+            if(millis() - last > 1000)
+            {
+                last = millis();
+                uh.updateDateTime();
+                if (turnLcdOn(mt->mytm.tm_hour, mt->mytm.tm_min,
+                    se->s.fromHour.value, se->s.fromMin.value,
+                    se->s.toHour.value, se->s.toMin.value)) {
+                    backlightOnOff(true);
+                } else {
+                    backlightOnOff(false);
+                }
+            }
+
+            delay(100);
+            ih.loop();
+            break;
+
+        case 1: // Just started
+            DEBUG_PRINTF("Loop auf Core %d\n",xPortGetCoreID());
             backlightOnOff(false);
-        }
-    }
+            lvgl_port_lock(portMAX_DELAY);
+            OTAStarted = 2;
+            break;
 
+        case 2: // During OTA
+            MzOTA.loop();
+            break;
 
-    if(!OTAStarted)
-    {
-        delay(100);
-        ih.loop();
+        case 3: // OTA ended
+            backlightOnOff(true);
+            lvgl_port_unlock();
+            OTAStarted = 4;
+            break;
+ 
+        case 4:
+            MzOTA.loop();
+            break;
     }
-    MzOTA.loop();
 }
 
 

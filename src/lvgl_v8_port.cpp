@@ -710,6 +710,7 @@ static bool tick_deinit(void)
 static void lvgl_port_task(void *arg)
 {
     ESP_UTILS_LOGD("Starting LVGL task");
+    ESP_UTILS_LOGI("LVGL task auf Core %d",xPortGetCoreID());
 
     uint32_t task_delay_ms = LVGL_PORT_TASK_MAX_DELAY_MS;
     while (1) {
