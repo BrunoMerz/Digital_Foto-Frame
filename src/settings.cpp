@@ -3,9 +3,11 @@
 #include "settings.h"
 #include <Preferences.h>
 #include "imageHandler.h"
-#include "myDebug.h"
 #include <lvgl.h>
 #include "lvgl_v8_port.h"
+
+//#define myDEBUG
+#include "myDebug.h"
 
 extern ImageHandler ih;
 

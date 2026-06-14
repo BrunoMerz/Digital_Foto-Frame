@@ -2,7 +2,7 @@
 
 #include "fileHandler.h"
 
-#define myDebug
+//#define myDebug
 #include "myDebug.h"
 
 

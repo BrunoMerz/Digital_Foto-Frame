@@ -9,8 +9,10 @@
 #include "imageHandler.h"
 #include "uiHandler.h"
 #include "settings.h"
-#include "myDebug.h"
 #include "credentials.h"
+
+//#define myDEBUG
+#include "myDebug.h"
 
 extern UIHandler uh;
 

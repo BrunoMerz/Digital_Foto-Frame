@@ -60,6 +60,7 @@ char debugLog[2048];
 static Settings *se;
 static MyTime *mt;
 
+
 static uint32_t startup = 0;
 static unsigned long ota_progress_millis = 0;
 static int16_t OTAStarted = 0;
@@ -67,22 +68,23 @@ static int16_t OTAStarted = 0;
 void ConnectToWiFi(const char *ssid, const char *password);
 
 void backlightOnOff(bool onOff) {
-    static uint8_t backlightState = 100;
-    if(backlightState != onOff) {
-        if(backlight) {
-            if(onOff) {
-                backlight->on();
+    if(backlight) {
+        if(onOff) {
+            if(!backlight->getBrightness()) {       // turn on if it's off
+                backlight->setBrightness(se->s.brightness.value);
                 DEBUG_PRINTLN("Display on");
                 uh.debug("Display on");
-            } else {
-                backlight->off();
+            }
+        } else {                                    // turn off if brightness is not 0
+            if(backlight->getBrightness()) {
+                backlight->setBrightness(0);
                 DEBUG_PRINTLN("Display off");
                 uh.debug("Display off");
             }
-            backlightState = onOff;
         }
     }
 }
+
 
 void onOTAStart() {
   // Log when OTA has started
@@ -91,6 +93,7 @@ void onOTAStart() {
   OTAStarted = 1;
 }
 
+
 void onOTAProgress(size_t current, size_t final) {
   // Log every 1 second
   if (millis() - ota_progress_millis > 1000) {
@@ -98,6 +101,7 @@ void onOTAProgress(size_t current, size_t final) {
     DEBUG_PRINTF("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
   }
 }
+
 
 void onOTAEnd(bool success) {
   // Log when OTA has finished
@@ -109,31 +113,31 @@ void onOTAEnd(bool success) {
   OTAStarted = 3;
 }
 
+
 void setup()
 {
     Serial.begin(115200);
     delay(500);
 
     DEBUG_PRINTF("Initializing board, tearing=%d\n", LVGL_PORT_AVOID_TEARING_MODE);
-
     
-    fh.init();
+    fh.init();      // Initialize Filesystem
 
     ConnectToWiFi(WIFI_SSID, WIFI_PASSWORD);
 
-    wh.init();
-    wh.start();
+    wh.init();      // Initialize WebHandker
+    wh.start();     // WebServer start
 
     // Initialize Date Time from NTP
-    mt = MyTime::getInstance();
-    mt->confTime();
+    mt = MyTime::getInstance(); // get Time object
+    mt->confTime();             // configure and start time
 
-    board = new Board();
-    board->init();
-    backlight = board->getBacklight();
+    board = new Board();        // get board object
+    board->init();              // board init
+    backlight = board->getBacklight(); // get backlight object
 
 #if LVGL_PORT_AVOID_TEARING_MODE
-    auto lcd = board->getLCD();
+    auto lcd = board->getLCD(); // get LCD object
     // When avoid tearing function is enabled, the frame buffer number should be set in the board driver
     lcd->configFrameBufferNumber(LVGL_PORT_DISP_BUFFER_NUM);
 #if ESP_PANEL_DRIVERS_BUS_ENABLE_RGB && CONFIG_IDF_TARGET_ESP32S3
@@ -148,7 +152,7 @@ void setup()
     }
 #endif
 #endif
-    assert(board->begin());
+    assert(board->begin());     // start board
 
     DEBUG_PRINTLN("Initializing LVGL");
     assert(lvgl_port_init(board->getLCD(), board->getTouch()));
@@ -157,13 +161,13 @@ void setup()
     delay(500);
 
     DEBUG_PRINTLN("IMG Handler init");
-    ih.init();
+    ih.init();  // Initialize imageHandler
     DEBUG_PRINTLN("UI Handler init");
-    uh.init();
+    uh.init();  // Initialize UI handler
     
     DEBUG_PRINTF("Screen width: %d, height: %d\n", lv_obj_get_width(lv_scr_act()), lv_obj_get_height(lv_scr_act()));
-    se = Settings::getInstance();
-    se->init();
+    se = Settings::getInstance();   // get Settings objects
+    se->init();                     // Initialize settings
     
     // Starting DNS Server
     //dns.start(DNS_PORT, "*", WiFi.localIP());
@@ -179,6 +183,8 @@ void setup()
 
     delay(100);
 
+    backlight->setBrightness(se->s.brightness.value);
+
     debugSysEnv();
      
     startup = millis();
@@ -193,18 +199,18 @@ bool turnLcdOn(
     int start   = onHour * 60 + onMinute;
     int end     = offHour * 60 + offMinute;
 
-    if(millis() - startup > 300000) { // 5 Minuten bleibt das display auf jeden Fall an
-        // Zeitspanne innerhalb eines Tages
+    if(millis() - startup > 300000) { // 5 Minutes stays LCD on
+        // Time period in which LCD is on
         if (start < end)
         {
             return (current >= start && current < end);
         }
-        // Zeitspanne geht über Mitternacht
+        // Time period over midnight
         else if (start > end)
         {
             return (current >= start || current < end);
         }
-        // start == end -> 24 Stunden EIN
+        // start == end -> 24 hours on
         else
         {
             return true;
@@ -256,7 +262,7 @@ void loop()
             OTAStarted = 4;
             break;
  
-        case 4:
+        case 4: // waiting for reboot, see MzOAT.loop
             MzOTA.loop();
             break;
     }
