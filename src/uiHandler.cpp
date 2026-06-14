@@ -42,8 +42,8 @@ void  UIHandler::createSpinbox(lv_obj_t *sb, lv_coord_t x_ofs, lv_coord_t y_ofs,
 
     // Event: Spin value changed
     lv_obj_add_event_cb(sb, [](lv_event_t *e){
+        lvgl_port_lock(portMAX_DELAY);
         lv_obj_t *obj = lv_event_get_target(e);
-        
         if(se->s.fromHour.uiPtr==obj) {
             se->s.fromHour.value = lv_spinbox_get_value(obj);
             se->setUInt("fromHour", se->s.fromHour.value);
@@ -57,7 +57,7 @@ void  UIHandler::createSpinbox(lv_obj_t *sb, lv_coord_t x_ofs, lv_coord_t y_ofs,
             se->s.toMin.value = lv_spinbox_get_value(obj);
             se->setUInt("toMin", se->s.toMin.value);
         }
-        
+        lvgl_port_unlock();
     }, LV_EVENT_VALUE_CHANGED, sb);
     
 }
@@ -67,11 +67,11 @@ void  UIHandler::createSpinbox(lv_obj_t *sb, lv_coord_t x_ofs, lv_coord_t y_ofs,
 // Anzeigedauer
 static void duration_event_cb(lv_event_t *e) {
     char buf[30];
+    lvgl_port_lock(portMAX_DELAY);
     se->s.duration.value = lv_slider_get_value(se->s.duration.uiPtr);
     se->setUInt("duration", se->s.duration.value);
     //DEBUG_PRINTF("Dauer: %d\n", se->s.duration.value);
     sprintf(buf,"Anzeigedauer (%d Sek)", se->s.duration.value);
-    lvgl_port_lock(portMAX_DELAY);
     lv_label_set_text(se->s.lblDuration.uiPtr, buf);
     lvgl_port_unlock();
 }
@@ -95,24 +95,28 @@ static void brightness_event_cb(lv_event_t *e) {
 
 // Übergänge
 static void transition_event_cb(lv_event_t *e) {
+    lvgl_port_lock(portMAX_DELAY);
     se->s.transition.value = lv_dropdown_get_selected(se->s.transition.uiPtr);
     se->setUInt("transition", se->s.transition.value);
     DEBUG_PRINTF("Übergang: %s\n", se->s.transition.value);
+     lvgl_port_unlock();
 }
 
 // Anzahl Bilder
 static void mode_event_cb(lv_event_t *e) {
+     lvgl_port_lock(portMAX_DELAY);
     se->s.mode.value = lv_dropdown_get_selected(se->s.mode.uiPtr);
     DEBUG_PRINTF("Mode: %d\n", se->s.mode.value);
     ih.setUIPanel(se->s.mode.value);
+     lvgl_port_unlock();
 }
 
 // Ausrichtung
 static void orientation_event_cb(lv_event_t *e) {
     char *endptr;
-    lv_obj_t *dd = lv_event_get_target(e);
     char buf[32];
     lvgl_port_lock(portMAX_DELAY);
+    lv_obj_t *dd = lv_event_get_target(e);
     lv_dropdown_get_selected_str(dd, buf, sizeof(buf));
     lvgl_port_unlock();
     DEBUG_PRINTF("Auswahl: %s\n", buf);
@@ -351,13 +355,13 @@ void UIHandler::createSettingsUI(void) {
     lv_label_set_text(plabel, "+");
     lv_obj_center(plabel);
 
-    lv_obj_add_event_cb(pbtn, [](lv_event_t *e){
+    lv_obj_add_event_cb(pbtn, [](lv_event_t *e) {
+        lvgl_port_lock(portMAX_DELAY);
         lv_obj_t *pbtn = lv_event_get_target(e);
         if(selectedSpin) {
-            lvgl_port_lock(portMAX_DELAY);
             lv_spinbox_increment(selectedSpin);
-            lvgl_port_unlock();
         }
+        lvgl_port_unlock();
     }, LV_EVENT_CLICKED, pbtn);
 
     // - Button
@@ -368,12 +372,12 @@ void UIHandler::createSettingsUI(void) {
     lv_label_set_text(mlabel, "-");
     lv_obj_center(mlabel);
     lv_obj_add_event_cb(mbtn, [](lv_event_t *e){
+        lvgl_port_lock(portMAX_DELAY);
         lv_obj_t *mbtn = lv_event_get_target(e);
         if(selectedSpin) {
-            lvgl_port_lock(portMAX_DELAY);
             lv_spinbox_decrement(selectedSpin);
-            lvgl_port_unlock();
         }
+        lvgl_port_unlock();
     }, LV_EVENT_CLICKED, mbtn);
  
     // Restart Button
