@@ -20,7 +20,8 @@ class ImageHandler {
     public:
         ImageHandler(void);
         void init(void);
-        bool getImageList(const String &phpUrl);
+        bool getImageList(void);
+        bool getImageListState(void);
         bool downloadJpg(const String &url);
         bool decodeJpgToBuffer(void);
         void prepareLvglImage(void);
@@ -53,7 +54,11 @@ class ImageHandler {
         unsigned long lastUpdate;
 
         JsonDocument doc;
+        JsonDocument state;
         JsonArray images;
+        
+        String path;
+        String sessioID;
 
         uint8_t *jpgBuffer;     // JPG Puffer in PSRAM
         size_t jpgBufferSize;   // aktuelle göße des jpgBuffer

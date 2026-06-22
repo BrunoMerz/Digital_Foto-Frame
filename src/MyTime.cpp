@@ -9,9 +9,9 @@
 #include <WiFi.h>
 
 //#define myDEBUG
-#include "MyDebug.h"
+#include "myDebug.h"
 
-#include "MyTime.h"
+#include "myTime.h"
 #include "esp_sntp.h"
 
 // the short strings for each day or month must be exactly dt_SHORT_STR_LEN
@@ -231,6 +231,13 @@ String MyTime::getDate(void) {
   return timeStamp;
 }
 
+char *MyTime::getTimeStamp(void) {
+  struct tm *tm = localtime(&mytm.tm_loc);
+
+  
+  strftime(timestamp, sizeof(timestamp), "%d:%m %H:%M:%S ", tm);
+  return timestamp;
+}
 
 /**
    returns current time hours, minutes, seconds and day

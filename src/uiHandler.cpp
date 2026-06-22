@@ -5,7 +5,7 @@
 #include "uiHandler.h"
 #include "imageHandler.h"
 #include "settings.h"
-#include "MyTime.h"
+#include "myTime.h"
 
 //#define myDEBUG
 #include "myDebug.h"
@@ -99,16 +99,16 @@ static void transition_event_cb(lv_event_t *e) {
     se->s.transition.value = lv_dropdown_get_selected(se->s.transition.uiPtr);
     se->setUInt("transition", se->s.transition.value);
     DEBUG_PRINTF("Übergang: %s\n", se->s.transition.value);
-     lvgl_port_unlock();
+    lvgl_port_unlock();
 }
 
 // Anzahl Bilder
 static void mode_event_cb(lv_event_t *e) {
-     lvgl_port_lock(portMAX_DELAY);
+    lvgl_port_lock(portMAX_DELAY);
     se->s.mode.value = lv_dropdown_get_selected(se->s.mode.uiPtr);
     DEBUG_PRINTF("Mode: %d\n", se->s.mode.value);
     ih.setUIPanel(se->s.mode.value);
-     lvgl_port_unlock();
+    lvgl_port_unlock();
 }
 
 // Ausrichtung

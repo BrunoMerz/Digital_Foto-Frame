@@ -1,6 +1,6 @@
 
-#ifndef MzOTA_h
-#define MzOTA_h
+#ifndef mzOTA_h
+#define mzOTA_h
 
 #include "Arduino.h"
 #include "stdlib_noniso.h"

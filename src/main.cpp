@@ -29,12 +29,12 @@
 #include "webHandler.h"
 #include "imageHandler.h"
 #include "uiHandler.h"
-#include "MzOTA.h"
+#include "mzOTA.h"
 #include "credentials.h"
-#include "MyTime.h"
+#include "myTime.h"
 
 
-extern void debugSysEnv(void);
+
 
 //////////////////////
 // Configuration
@@ -55,10 +55,9 @@ FileHandler fh;
 WebHandler wh;
 UIHandler uh;
 
-char debugLog[2048];
-
 static Settings *se;
 static MyTime *mt;
+static MyDebug *md;
 
 
 static uint32_t startup = 0;
@@ -157,8 +156,10 @@ void setup()
     DEBUG_PRINTLN("Initializing LVGL");
     assert(lvgl_port_init(board->getLCD(), board->getTouch()));
 
-
     delay(500);
+
+    md = MyDebug::getInstance();
+    md->debugSysEnv();
 
     DEBUG_PRINTLN("IMG Handler init");
     ih.init();  // Initialize imageHandler
@@ -185,7 +186,7 @@ void setup()
 
     backlight->setBrightness(se->s.brightness.value);
 
-    debugSysEnv();
+
      
     startup = millis();
 }
@@ -277,7 +278,7 @@ void ConnectToWiFi(const char *ssid, const char *password)
     DEBUG_PRINTLN("main::ConnectToWiFi()");
 
     // prepare WiFi
-    WiFi.disconnect(true);             // that no old information is stored  
+    // WiFi.disconnect(true);             // that no old information is stored  
     WiFi.mode(WIFI_OFF);               // switch WiFi off  
     delay(1000);                       // short wait to ensure WIFI_OFF  
     WiFi.persistent(false);            // avoid that WiFi-parameters will be stored in persistent memory  

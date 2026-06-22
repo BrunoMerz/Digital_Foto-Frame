@@ -16,7 +16,8 @@
 
 extern UIHandler uh;
 
-static Settings *se = Settings::getInstance();
+static Settings *se;
+static MyDebug *md;
 
 uint16_t ImageHandler::sw = 0;
 uint8_t ImageHandler::imgNo = 0;
@@ -48,6 +49,7 @@ ImageHandler::ImageHandler() {
     cont3 = nullptr;
     cont4 = nullptr;
     
+    sessioID="";
     jpgSize = 0;
     currentImageIndex = 0;
     lastUpdate = 0;
@@ -62,7 +64,10 @@ ImageHandler::ImageHandler() {
 
 
 void ImageHandler::init() {
-    getImageList(PHPURL);
+    se = Settings::getInstance();
+    md = MyDebug::getInstance();
+
+    getImageList();
 
     lvgl_port_lock(portMAX_DELAY);
     // EIN gemeinsamer Container für die Image-Ansicht
@@ -135,19 +140,51 @@ void ImageHandler::init() {
 }
 
 
-//////////////////////
-// Nächstes Bild-URL holen
-//////////////////////
-
-bool ImageHandler::getImageList(const String &phpUrl) {
-      
+bool ImageHandler::getImageListState(void) {
+    String imageUrl;
     HTTPClient http;
-    http.begin(phpUrl);
+    http.begin(PHPURL2);
+    if(sessioID.length())
+        http.addHeader("Cookie", "PHPSESSID="+sessioID);
     int httpCode = http.GET();
     bool ret=true;
 
     if (httpCode == HTTP_CODE_OK) {
-        String imageUrl = http.getString();
+        imageUrl = http.getString();
+        DeserializationError error = deserializeJson(state, imageUrl);
+        if (error) {
+          DEBUG_PRINT("JSON Fehler: ");
+          DEBUG_PRINTLN(error.c_str());
+          ret = false;
+        }
+    } else {
+        DEBUG_PRINTLN("HTTP Error: " + String(httpCode));
+        ret = false;
+    }
+
+    http.end();
+
+    md->log("state=" + state["state"].as<String>());
+
+    if(state["state"].as<String>() == "new_files")
+        return true;
+    else
+        return false;
+}
+
+bool ImageHandler::getImageList(void) {
+    String imageUrl;
+    HTTPClient http;
+    if(!getImageListState())
+        return true;
+    http.begin(PHPURL1);
+    if(sessioID.length())
+        http.addHeader("Cookie", "PHPSESSID="+sessioID);
+    int httpCode = http.GET();
+    bool ret=true;
+
+    if (httpCode == HTTP_CODE_OK) {
+        imageUrl = http.getString();
         DeserializationError error = deserializeJson(doc, imageUrl);
         if (error) {
           DEBUG_PRINT("JSON Fehler: ");
@@ -161,9 +198,26 @@ bool ImageHandler::getImageList(const String &phpUrl) {
 
     http.end();
     
-    images = doc["images"];
+    
+    path = doc["path"].as<String>();
+    sessioID = doc["sessionid"].as<String>();
 
+    // Add List of images to debug log
+    
+    md->log("Path="+path);
+    md->log("SessionID=" + sessioID);
+    md->log("checksum=" + doc["checksum"].as<String>());
+    md->log("session_checksum=" + doc["session_checksum"].as<String>());
+    
+    images = doc["images"];
+    for(int i=0;i<images.size();i++) {
+        md->log((const char *)images[i]);
+    }
+
+
+    md->log("Anzahl="+String(images.size()));
     DEBUG_PRINTF("setup: Anzahl=%d\n",images.size());
+
     return ret;
 }
 
@@ -446,35 +500,34 @@ void ImageHandler::loop(void) {
     if(enabled) {
         if (millis() - lastUpdate > se->s.duration.value*1000) {
             DEBUG_PRINTF("Anzahl=%d\n", images.size());
-            if (images.size() == 0) return;
+            if (images.size() != 0) {
+                const char* filename = images[currentImageIndex];
 
-            const char* url = images[currentImageIndex];
-
-            // Lock the mutex due to the LVGL APIs are not thread-safe
-            lvgl_port_lock(portMAX_DELAY);
-            if (downloadJpg(url)) {
-                DEBUG_PRINTF("Bild %s anzeigen\n", url);
-                if (decodeJpgToBuffer()) {
-                    prepareLvglImage();
-                    displayImage();
-                    DEBUG_PRINTLN("Displayed new image");
-                    if(se->s.mode.value) {
-                        imgNo++;
-                        if(imgNo>3)
-                            imgNo=0;
+                // Lock the mutex due to the LVGL APIs are not thread-safe
+                //lvgl_port_lock(portMAX_DELAY);
+                md->log(String(currentImageIndex) + ": " + filename);
+                if (downloadJpg(path+"/"+filename)) {
+                    DEBUG_PRINTF("Bild %s anzeigen\n", filename);
+                    if (decodeJpgToBuffer()) {
+                        prepareLvglImage();
+                        displayImage();
+                        DEBUG_PRINTLN("Displayed new image");
+                        if(se->s.mode.value) {
+                            imgNo++;
+                            if(imgNo>3)
+                                imgNo=0;
+                        }
                     }
+                    DEBUG_PRINTLN("Bild angezeigt");
                 }
-                DEBUG_PRINTLN("Bild angezeigt");
+                // Release the mutex
+                //lvgl_port_unlock();
             }
-            // Release the mutex
-            lvgl_port_unlock();
-            
             currentImageIndex++;
             if (currentImageIndex >= images.size()) {
                 currentImageIndex = 0;
-                getImageList(PHPURL);
+                getImageList();
             }
-
             lastUpdate = millis();
         }
     }

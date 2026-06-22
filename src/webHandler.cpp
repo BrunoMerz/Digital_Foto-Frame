@@ -2,11 +2,12 @@
 #include <LittleFS.h>
 #include "ESPAsyncWebServer.h"
 #include "webHandler.h"
-#include "MzOTAHtml.h"
+#include "mzOTAHtml.h"
 #include "uiHandler.h"
 #include "imageHandler.h"
-#include "MyTime.h"
+#include "myTime.h"
 #include "settings.h"
+#include "myDebug.h"
 #include <lvgl.h>
 #include "lvgl_v8_port.h"
 
@@ -15,7 +16,7 @@ using namespace esp_panel::drivers;
 extern Backlight *backlight;
 extern ImageHandler ih;
 extern UIHandler uh;
-extern char debugLog[2048];
+
 extern bool turnLcdOn(
     int currentHour, int currentMinute,
     int onHour, int onMinute,
@@ -23,6 +24,7 @@ extern bool turnLcdOn(
 
 static MyTime *mt = MyTime::getInstance();
 static Settings *se = Settings::getInstance();
+static MyDebug *md = MyDebug::getInstance();
 
 WebHandler::WebHandler(void) 
 {
@@ -66,18 +68,7 @@ void WebHandler::webRequests()
 
   webServer->on("/debug", HTTP_GET, [](AsyncWebServerRequest *request)
   {
-    strcat(debugLog,mt->getDate().c_str());
-
-    if(turnLcdOn(mt->mytm.tm_hour, mt->mytm.tm_min,
-                    se->s.fromHour.value, se->s.fromMin.value,
-                    se->s.toHour.value, se->s.toMin.value))
-      strcat(debugLog," sollte ein sein\n");
-    else
-      strcat(debugLog," sollte aus sein\n");
-    strcat(debugLog,"Backlight value=");
-    strcat(debugLog,String(backlight->getBrightness()).c_str());
-    strcat(debugLog,"\n");
-    request->send(200, "text/plain", debugLog);
+    request->send(200, "text/plain", md->getLog());
   });
 }
 

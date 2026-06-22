@@ -1,5 +1,5 @@
-#include "MzOTA.h"
-#include "MzOTAHtml.h"
+#include "mzOTA.h"
+#include "mzOTAHtml.h"
 #include <FS.h>
 #include <LittleFS.h>
 

@@ -1,5 +1,5 @@
 /**
-   MyTime.h
+   myTime.h
    @autor    Bruno Merz
 
    @version  1.0
@@ -69,6 +69,7 @@ class MyTime {
     char *dayStr(uint8_t day);
     time_t toLocal(time_t utc);
     time_t toUTC(time_t loc);
+    char *getTimeStamp(void);
     MYTM   mytm;
     bool isInitialized;
     
@@ -77,4 +78,5 @@ class MyTime {
     static MyTime *instance;
     time_t now;
     struct tm *lt;
+    char timestamp[20];
 };
